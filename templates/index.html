@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת חילוץ נתוני טאבו מרובים</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background-color: #fff; padding: 50px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: right; width: 100%; max-width: 600px; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; font-size: 24px; }
+
+        .upload-area {
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: #f9fcff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover { background-color: #eef7ff; border-color: #2980b9; }
+
+        input[type="file"] { display: none; }
+
+        .upload-label {
+            display: block;
+            font-size: 18px;
+            color: #3498db;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .file-info { margin-top: 10px; font-size: 14px; color: #7f8c8d; }
+
+        button {
+            background-color: #2ecc71; color: white; padding: 15px 30px; border: none; border-radius: 8px;
+            cursor: pointer; width: 100%; font-size: 18px; margin-top: 25px; font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #27ae60; }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+
+        .message { margin-top: 20px; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; }
+        .message.error { background-color: #fadbd8; color: #c0392b; border: 1px solid #e6b0aa; }
+        .message.success { background-color: #d4efdf; color: #1e8449; border: 1px solid #a9dfbf; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 חילוץ נסחי טאבו מרובים לאקסל</h1>
+    <form id="uploadForm">
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <label for="fileInput" class="upload-label">לחץ כאן לבחירת קבצים</label>
+            <div class="file-info">(ניתן לבחור מספר קבצי PDF במקביל)</div>
+            <input type="file" id="fileInput" name="tabu_files" accept=".pdf" multiple required>
+        </div>
+        <div id="fileCount" style="text-align:center; margin-top:10px; color:#555;"></div>
+
+        <button type="submit" id="submitBtn">חילוץ והורדה לאקסל</button>
+    </form>
+    <div id="message" class="message" style="display:none;"></div>
+</div>
+<script>
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', function() {
+        const count = this.files.length;
+        document.getElementById('fileCount').textContent = count > 0 ? `נבחרו ${count} קבצים` : '';
+    });
+
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const msg = document.getElementById('message');
+        const formData = new FormData(e.target);
+
+        if (fileInput.files.length === 0) {
+            msg.className = 'message error'; msg.textContent = 'נא לבחור לפחות קובץ אחד'; msg.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true; btn.textContent = 'מעבד נתונים... (זה עשוי לקחת רגע)';
+        msg.style.display = 'none';
+
+        fetch('/upload', { method: 'POST', body: formData })
+            .then(res => {
+                if (res.ok) return res.blob();
+                return res.text().then(text => { throw new Error(text) });
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // הורדת קובץ XLSX במקום CSV
+                a.download = 'Tabu_Multi_Sheets.xlsx';
+                document.body.appendChild(a); a.click();
+
+                msg.className = 'message success'; msg.textContent = 'הקובץ הורד בהצלחה! כל חלקה בגיליון נפרד.'; msg.style.display = 'block';
+                btn.disabled = false; btn.textContent = 'חילוץ והורדה לאקסל';
+            })
+            .catch(err => {
+                msg.className = 'message error'; msg.textContent = 'שגיאה: ' + err.message; msg.style.display = 'block';
+                btn.disabled = false; btn.textContent = 'חילוץ והורדה לאקסל';
+            });
+    });
+</script>
+</body>
+</html>
